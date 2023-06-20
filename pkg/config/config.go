@@ -8,6 +8,7 @@ package config
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -140,12 +141,20 @@ func (cfg *Config) fromEnv() error {
 	})
 }
 
-// ConnectionURL returns a connection URL.
-func (db *Database) ConnectionURL() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s",
-		db.User,
-		db.Password,
-		db.Host,
+// pgEncode encodes a string to be used in the postgres key value style.
+// See: https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+func pgEncode(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `'`, `\'`)
+	return s
+}
+
+// ConnectionConfig returns a postgres Keyword/Value Connection String.
+func (db *Database) ConnectionConfig() string {
+	return fmt.Sprintf("user='%s' password='%s' host='%s' port='%d' dbname='%s'",
+		pgEncode(db.User),
+		pgEncode(db.Password),
+		pgEncode(db.Host),
 		db.Port,
-		db.Database)
+		pgEncode(db.Database))
 }
