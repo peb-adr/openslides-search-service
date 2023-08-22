@@ -6,6 +6,7 @@ package search
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"strconv"
@@ -16,12 +17,13 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis"
-	"github.com/blevesearch/bleve/v2/analysis/char/html"
+	bleveHtml "github.com/blevesearch/bleve/v2/analysis/char/html"
 	"github.com/blevesearch/bleve/v2/analysis/lang/de"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/blevesearch/bleve/v2/registry"
+	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/buger/jsonparser"
 )
 
@@ -77,7 +79,7 @@ func deHTMLAnalyzerConstructor(
 	cache *registry.Cache,
 ) (analysis.Analyzer, error) {
 
-	htmlFilter, err := cache.CharFilterNamed(html.Name)
+	htmlFilter, err := cache.CharFilterNamed(bleveHtml.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +104,11 @@ func deHTMLAnalyzerConstructor(
 		return nil, err
 	}
 	rv := analysis.DefaultAnalyzer{
-		CharFilters: []analysis.CharFilter{htmlFilter},
-		Tokenizer:   unicodeTokenizer,
+		CharFilters: []analysis.CharFilter{
+			htmlFilter,
+			&specialCharFilter{},
+		},
+		Tokenizer: unicodeTokenizer,
 		TokenFilters: []analysis.TokenFilter{
 			toLowerFilter,
 			stopDeFilter,
@@ -114,29 +119,40 @@ func deHTMLAnalyzerConstructor(
 	return &rv, nil
 }
 
+type specialCharFilter struct{}
+
+func (f *specialCharFilter) Filter(input []byte) []byte {
+	input = []byte(html.UnescapeString(string(input)))
+	return input
+}
+
 func init() {
 	registry.RegisterAnalyzer(deHTML, deHTMLAnalyzerConstructor)
 }
 
-type bleveType map[string]string
+type bleveType map[string]any
 
 func newBleveType(typ string) bleveType {
 	return bleveType{"_bleve_type": typ}
 }
 
 func (bt bleveType) BleveType() string {
-	return bt["_bleve_type"]
+	return bt["_bleve_type"].(string)
 }
 
 func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 
+	numberFieldMapping := bleve.NewNumericFieldMapping()
 	textFieldMapping := bleve.NewTextFieldMapping()
 	textFieldMapping.Analyzer = de.AnalyzerName
 
 	htmlFieldMapping := bleve.NewTextFieldMapping()
 	htmlFieldMapping.Analyzer = deHTML
 
+	stringFieldMapping := bleve.NewTextFieldMapping()
+
 	indexMapping := mapping.NewIndexMapping()
+	indexMapping.TypeField = "_bleve_type"
 
 	for name, col := range collections {
 		docMapping := bleve.NewDocumentMapping()
@@ -147,8 +163,14 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 					docMapping.AddFieldMappingsAt(fname, htmlFieldMapping)
 				case "string", "text":
 					docMapping.AddFieldMappingsAt(fname, textFieldMapping)
+				case "generic-relation":
+					docMapping.AddFieldMappingsAt(fname, stringFieldMapping)
+				case "relation", "number":
+					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
+				case "number[]":
+					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
 				default:
-					log.Printf("unsupport type %q\n", cf.Type)
+					log.Printf("unsupport type %q on field %s\n", cf.Type, fname)
 				}
 			}
 		}
@@ -160,11 +182,33 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 
 func (bt bleveType) fill(fields map[string]*meta.Member, data []byte) {
 	for fname := range fields {
-		if v, err := jsonparser.GetString(data, fname); err == nil {
-			bt[fname] = v
-		} else {
-			delete(bt, fname)
+		switch fields[fname].Type {
+		case "HTMLStrict", "HTMLPermissive", "string", "text", "generic-relation":
+			if v, err := jsonparser.GetString(data, fname); err == nil {
+				bt[fname] = v
+				continue
+			}
+		case "relation", "number":
+			if v, err := jsonparser.GetInt(data, fname); err == nil {
+				bt[fname] = v
+				continue
+			}
+		case "number[]":
+			bt[fname] = []int64{}
+			jsonparser.ArrayEach(data, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+				if v, err := jsonparser.GetInt(value); err == nil {
+					bt[fname] = append(bt[fname].([]int64), v)
+				}
+			}, fname)
+			continue
+		default:
+			if v, _, _, err := jsonparser.Get(data, fname); err == nil {
+				bt[fname] = v
+				continue
+			}
 		}
+
+		delete(bt, fname)
 	}
 }
 
@@ -279,6 +323,14 @@ func (ti *TextIndex) build() error {
 	return nil
 }
 
+func newNumericQuery(num float64) *query.NumericRangeQuery {
+	inclusive := true
+	numericQuery := bleve.NewNumericRangeQuery(&num, &num)
+	numericQuery.InclusiveMin = &inclusive
+	numericQuery.InclusiveMax = &inclusive
+	return numericQuery
+}
+
 // Answer contains additional information of an search results answer
 type Answer struct {
 	Score        float64
@@ -286,17 +338,33 @@ type Answer struct {
 }
 
 // Search queries the internal index for hits.
-func (ti *TextIndex) Search(question string) (map[string]Answer, error) {
+func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, error) {
 	start := time.Now()
 	defer func() {
 		log.Printf("searching for %q took %v\n", question, time.Since(start))
 	}()
-	//query := bleve.NewQueryStringQuery(question)
-	//query := bleve.NewWildcardQuery(question)
-	query := bleve.NewMatchQuery(question)
-	query.Analyzer = de.AnalyzerName
-	query.Fuzziness = 1
-	request := bleve.NewSearchRequest(query)
+
+	var q query.Query
+	matchQuery := bleve.NewQueryStringQuery(question)
+
+	if meetingID > 0 {
+		fmid := float64(meetingID)
+		meetingIDQuery := newNumericQuery(fmid)
+		meetingIDQuery.SetField("meeting_id")
+
+		meetingIDsQuery := newNumericQuery(fmid)
+		meetingIDsQuery.SetField("meeting_ids")
+
+		meetingIDOwnerQuery := bleve.NewMatchQuery("meeting/" + strconv.Itoa(meetingID))
+		meetingIDOwnerQuery.SetField("owner_id")
+
+		meetingQuery := bleve.NewDisjunctionQuery(meetingIDQuery, meetingIDsQuery, meetingIDOwnerQuery)
+		q = bleve.NewConjunctionQuery(meetingQuery, matchQuery)
+	} else {
+		q = matchQuery
+	}
+
+	request := bleve.NewSearchRequest(q)
 	request.IncludeLocations = true
 	result, err := ti.index.Search(request)
 	if err != nil {
