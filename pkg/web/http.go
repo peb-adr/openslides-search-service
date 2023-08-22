@@ -39,10 +39,10 @@ type auRequest struct {
 	Fields     map[string]*meta.CollectionRelation `json:"fields"`
 }
 
-func (c *controller) autoupdateRequestFromFQIDs(fqids []string) []auRequest {
+func (c *controller) autoupdateRequestFromFQIDs(answers map[string]search.Answer) []auRequest {
 	collIdxMap := map[string]int{}
 	var req []auRequest
-	for _, fqid := range fqids {
+	for fqid := range answers {
 		collection, id, found := strings.Cut(fqid, "/")
 		if !found {
 			continue
@@ -125,7 +125,7 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 
-		filteredResp, err := transformRestricterResponse(resp.Body)
+		filteredResp, err := transformRestricterResponse(answers, resp.Body)
 		if err != nil {
 			handleErrorWithStatus(w, err)
 			return
@@ -147,7 +147,7 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 }
 
 // transforms the autoupdate response to per fqid objects
-func transformRestricterResponse(body io.ReadCloser) ([]byte, error) {
+func transformRestricterResponse(answers map[string]search.Answer, body io.ReadCloser) ([]byte, error) {
 	respBody, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err
@@ -158,7 +158,12 @@ func transformRestricterResponse(body io.ReadCloser) ([]byte, error) {
 		return nil, err
 	}
 
-	transformed := make(map[string]map[string]any)
+	type resultEntry struct {
+		Content      map[string]any      `json:"content"`
+		MatchedWords map[string][]string `json:"matched_by,omitempty"`
+		Score        *float64            `json:"score,omitempty"`
+	}
+	transformed := make(map[string]resultEntry)
 	for k, v := range restricterResponse {
 		parts := strings.Split(k, "/")
 		if len(parts) >= 3 {
@@ -166,10 +171,20 @@ func transformRestricterResponse(body io.ReadCloser) ([]byte, error) {
 			field := parts[2]
 
 			if _, ok := transformed[fqid]; !ok {
-				transformed[fqid] = make(map[string]any)
+				var score *float64
+				var matchedWords map[string][]string
+				if val, ok := answers[fqid]; ok {
+					score = &val.Score
+					matchedWords = val.MatchedWords
+				}
+				transformed[fqid] = resultEntry{
+					Content:      make(map[string]any),
+					MatchedWords: matchedWords,
+					Score:        score,
+				}
 			}
 
-			transformed[fqid][field] = v
+			transformed[fqid].Content[field] = v
 		}
 	}
 
