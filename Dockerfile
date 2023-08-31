@@ -32,7 +32,7 @@ RUN ["go", "install", "github.com/githubnemo/CompileDaemon@latest"]
 EXPOSE 9050
 
 COPY entrypoint.sh ./
-COPY --from=builder /root/search.yml .
+COPY search.yml .
 COPY --from=builder /root/models.yml .
 ENTRYPOINT ["./entrypoint.sh"]
 CMD CompileDaemon -log-prefix=false -build="go build -o openslides-search-service cmd/searchd/main.go" -command="./openslides-search-service"
