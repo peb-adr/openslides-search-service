@@ -150,6 +150,7 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 	htmlFieldMapping.Analyzer = deHTML
 
 	stringFieldMapping := bleve.NewTextFieldMapping()
+	stringFieldMapping.Analyzer = "simple"
 
 	indexMapping := mapping.NewIndexMapping()
 	indexMapping.TypeField = "_bleve_type"
@@ -176,6 +177,8 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 		}
 		indexMapping.AddDocumentMapping(name, docMapping)
 	}
+
+	indexMapping.DefaultAnalyzer = de.AnalyzerName
 
 	return indexMapping
 }
@@ -366,6 +369,7 @@ func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, 
 
 	request := bleve.NewSearchRequest(q)
 	request.IncludeLocations = true
+	request.Size = 100
 	result, err := ti.index.Search(request)
 	if err != nil {
 		return nil, err
