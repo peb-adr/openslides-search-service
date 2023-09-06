@@ -1,0 +1,49 @@
+lib-cov
+*.seed
+*.log
+*.csv
+*.dat
+*.out
+*.pid
+*.gz
+*.swp
+
+pids
+logs
+results
+tmp
+
+# Build
+public/css/main.css
+build
+[b/B]uild
+[d/D]ist
+
+# Coverage reports
+coverage
+
+# Dependency directory
+node_modules
+bower_components
+.virtualenv
+.venv
+
+# Editors
+.idea
+*.iml
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Ignore built files
+*/dist/**/*
+__pycache__
+.pytest_cache
+
+# ignore yarn.lock
+yarn.lock
+
+# ignore database files
+database
+UserDatabase

@@ -1,0 +1,10 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: OpenSlides Search Service
+Upstream-Contact: Sascha L. Teichmann <sascha.teichmann@intevation.de>
+Source: https://github.com/OpenSlides/openslides-search-service
+
+# Sample paragraph, commented out:
+#
+# Files: src/*
+# Copyright: $YEAR $NAME <$CONTACT>
+# License: ...
