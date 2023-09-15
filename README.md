@@ -7,6 +7,7 @@ The OpenSlides search service.
 
 | Env variable                    | Default value              | Meaning |
 | ------------------------------- | -------------------------- | ------- |
+| `OPENSLIDES_LOG_LEVEL`          | `info`                     | Log level. Can be panic, fatal, error, warn, info, debug, trace |
 | `SEARCH_PORT`                   | `9050`                     | Port the service listens on.    |
 | `SEARCH_LISTEN_HOST`            | ``                         | Host the service is bound to.   |
 | `SEARCH_MAX_QUEUED`             | `5`                        | Number of waiting queries.      |

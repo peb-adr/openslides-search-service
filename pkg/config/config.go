@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // Default configuration.
@@ -66,6 +68,7 @@ type Database struct {
 // Config is the configuration of the search service.
 type Config struct {
 	SecretsPath string
+	LogLevel    logrus.Level
 	Web         Web
 	Index       Index
 	Models      Models
@@ -81,6 +84,7 @@ type Restricter struct {
 // GetConfig returns the configuration overwritten with env vars.
 func GetConfig() (*Config, error) {
 	cfg := &Config{
+		LogLevel: logrus.InfoLevel,
 		Web: Web{
 			Port: DefaultWebPort,
 			Host: DefaultWebHost,
@@ -117,11 +121,13 @@ func (cfg *Config) fromEnv() error {
 	var (
 		storeString     = store(noparse)
 		storeInt        = store(strconv.Atoi)
+		storeLogLevel   = store(logrus.ParseLevel)
 		storeDuration   = store(parseDuration)
 		storeDBPassword = store(parseSecretsFile(DefaultDBPasswordFile))
 	)
 
 	return storeFromEnv([]storeEnv{
+		{"OPENSLIDES_LOG_LEVEL", storeLogLevel(&cfg.LogLevel)},
 		{"SEARCH_PORT", storeInt(&cfg.Web.Port)},
 		{"SEARCH_LISTEN_HOST", storeString(&cfg.Web.Host)},
 		{"SEARCH_MAX_QUEUED", storeInt(&cfg.Web.MaxQueue)},
