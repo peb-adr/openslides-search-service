@@ -88,7 +88,10 @@ func run(cfg *config.Config) error {
 	// Redis as message bus for datastore and logout events.
 	messageBus := redis.New(lookup)
 	// Auth Service.
-	authService, authBackground := auth.New(lookup, messageBus)
+	authService, authBackground, err := auth.New(lookup, messageBus)
+	if err != nil {
+		return err
+	}
 
 	go authBackground(ctx, oserror.Handle)
 
