@@ -48,6 +48,12 @@ mediafile:
   additional:
     - id
     - owner_id
+  relations:
+    owner_id:
+      type: generic-relation
+      fields:
+        id: null
+        name: null
 meeting:
   searchable:
     - external_id
