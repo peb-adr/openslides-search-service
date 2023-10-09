@@ -25,6 +25,7 @@ type CollectionRelation struct {
 type CollectionDescription struct {
 	Searchable []string                       `yaml:"searchable"`
 	Additional []string                       `yaml:"additional"`
+	Contains   []string                       `yaml:"contains,omitempty"`
 	Relations  map[string]*CollectionRelation `yaml:"relations,omitempty"`
 }
 

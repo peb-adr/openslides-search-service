@@ -1,4 +1,6 @@
 agenda_item:
+  contains:
+    - topic
   searchable:
     - item_number
     - comment
@@ -36,6 +38,8 @@ assignment:
         id: null
         name: null
 committee:
+  contains:
+    - meeting
   searchable:
     - name
     - description
@@ -46,9 +50,9 @@ mediafile:
   searchable:
     - title
     - filename
+    - owner_id
   additional:
     - id
-    - owner_id
   relations:
     owner_id:
       type: generic-relation
@@ -116,6 +120,10 @@ motion:
                 username: null
                 gender: null
 poll:
+  contains:
+    - topic
+    - motion
+    - assignment
   searchable:
     - title
     - description
@@ -139,6 +147,10 @@ poll:
             id: null
             name: null
 tag:
+  contains:
+    - topic
+    - motion
+    - assignment
   searchable:
     - name
     - meeting_id

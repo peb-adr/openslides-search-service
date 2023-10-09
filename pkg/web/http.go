@@ -31,6 +31,7 @@ type controller struct {
 	auth      *auth.Auth
 	qs        *search.QueryServer
 	reqFields map[string]map[string]*meta.CollectionRelation
+	collRel   map[string]map[string]struct{}
 }
 
 type auRequest struct {
@@ -64,6 +65,25 @@ func (c *controller) autoupdateRequestFromFQIDs(answers map[string]search.Answer
 	return req
 }
 
+func (c *controller) relatedCollections(req []string) []string {
+	collMap := map[string]struct{}{}
+	for _, reqColl := range req {
+		if reqColl == "" {
+			continue
+		}
+
+		for coll := range c.collRel[reqColl] {
+			collMap[coll] = struct{}{}
+		}
+	}
+
+	collections := make([]string, len(collMap))
+	for coll := range collMap {
+		collections = append(collections, coll)
+	}
+	return collections
+}
+
 func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 
 	query := r.FormValue("q")
@@ -74,8 +94,10 @@ func (c *controller) search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	collections := c.relatedCollections(strings.Split(r.FormValue("c"), ","))
+
 	meeting, _ := strconv.Atoi(r.FormValue("m"))
-	answers, err := c.qs.Query(query, meeting)
+	answers, err := c.qs.Query(query, collections, meeting)
 	if err != nil {
 		handleErrorWithStatus(w, err)
 		return
@@ -294,6 +316,7 @@ func Run(
 	auth *auth.Auth,
 	qs *search.QueryServer,
 	reqFields map[string]map[string]*meta.CollectionRelation,
+	collRel map[string]map[string]struct{},
 ) error {
 
 	c := controller{
@@ -301,6 +324,7 @@ func Run(
 		auth:      auth,
 		qs:        qs,
 		reqFields: reqFields,
+		collRel:   collRel,
 	}
 
 	mux := http.NewServeMux()
