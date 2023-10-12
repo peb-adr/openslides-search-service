@@ -95,6 +95,7 @@ motion:
       fields:
         id: null
         name: null
+        motions_show_sequential_number: null
     submitter_ids:
       type: relation-list
       collection: motion_submitter
@@ -147,6 +148,7 @@ poll:
           fields:
             id: null
             name: null
+            motions_show_sequential_number: null
 tag:
   contains:
     - topic
@@ -175,6 +177,7 @@ tag:
           fields:
             id: null
             name: null
+            motions_show_sequential_number: null
         content_object_id:
           type: generic-relation
           fields:
