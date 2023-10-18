@@ -18,6 +18,7 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis"
+	"github.com/blevesearch/bleve/v2/analysis/analyzer/keyword"
 	bleveHtml "github.com/blevesearch/bleve/v2/analysis/char/html"
 	"github.com/blevesearch/bleve/v2/analysis/lang/de"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
@@ -150,14 +151,15 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 	htmlFieldMapping := bleve.NewTextFieldMapping()
 	htmlFieldMapping.Analyzer = deHTML
 
-	stringFieldMapping := bleve.NewTextFieldMapping()
-	stringFieldMapping.Analyzer = "simple"
+	keywordFieldMapping := bleve.NewTextFieldMapping()
+	keywordFieldMapping.Analyzer = keyword.Name
 
 	indexMapping := mapping.NewIndexMapping()
 	indexMapping.TypeField = "_bleve_type"
 
 	for name, col := range collections {
 		docMapping := bleve.NewDocumentMapping()
+		docMapping.AddFieldMappingsAt("_bleve_type", keywordFieldMapping)
 		for fname, cf := range col.Fields {
 			if cf.Searchable {
 				switch cf.Type {
@@ -166,7 +168,7 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 				case "string", "text":
 					docMapping.AddFieldMappingsAt(fname, textFieldMapping)
 				case "generic-relation":
-					docMapping.AddFieldMappingsAt(fname, stringFieldMapping)
+					docMapping.AddFieldMappingsAt(fname, keywordFieldMapping)
 				case "relation", "number":
 					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
 				case "number[]":
@@ -342,7 +344,7 @@ type Answer struct {
 }
 
 // Search queries the internal index for hits.
-func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, error) {
+func (ti *TextIndex) Search(question string, collections []string, meetingID int) (map[string]Answer, error) {
 	start := time.Now()
 	defer func() {
 		log.Debugf("searching for %q took %v\n", question, time.Since(start))
@@ -359,13 +361,25 @@ func (ti *TextIndex) Search(question string, meetingID int) (map[string]Answer, 
 		meetingIDsQuery := newNumericQuery(fmid)
 		meetingIDsQuery.SetField("meeting_ids")
 
-		meetingIDOwnerQuery := bleve.NewMatchQuery("meeting/" + strconv.Itoa(meetingID))
+		meetingIDOwnerQuery := bleve.NewTermQuery("meeting/" + strconv.Itoa(meetingID))
 		meetingIDOwnerQuery.SetField("owner_id")
 
 		meetingQuery := bleve.NewDisjunctionQuery(meetingIDQuery, meetingIDsQuery, meetingIDOwnerQuery)
 		q = bleve.NewConjunctionQuery(meetingQuery, matchQuery)
 	} else {
 		q = matchQuery
+	}
+
+	if len(collections) > 0 {
+		collQueries := make([]query.Query, len(collections))
+		for i, c := range collections {
+			collQuery := bleve.NewTermQuery(c)
+			collQuery.SetField("_bleve_type")
+			collQueries[i] = collQuery
+		}
+
+		collFilterQuery := bleve.NewDisjunctionQuery(collQueries...)
+		q = bleve.NewConjunctionQuery(q, collFilterQuery)
 	}
 
 	request := bleve.NewSearchRequest(q)

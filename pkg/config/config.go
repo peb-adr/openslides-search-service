@@ -31,7 +31,7 @@ const (
 	DefaultDBPasswordFile = "/run/secrets/postgres_password"
 	DefaultDBHost         = "localhost"
 	DefaultDBPort         = 5432
-	DefaultRestricterURL  = ""
+	DefaultRestricterURL  = "http://autoupdate:9012/internal/autoupdate"
 )
 
 // Web are the parameters for the web server.

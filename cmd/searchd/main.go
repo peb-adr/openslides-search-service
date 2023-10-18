@@ -57,6 +57,7 @@ func run(cfg *config.Config) error {
 
 	// For text indexing we can only use string fields.
 	searchModels := models.Clone()
+	containmentMap := map[string]map[string]struct{}{}
 
 	// If there are search filters configured cut search models further down.
 	if cfg.Models.Search != "" {
@@ -64,6 +65,7 @@ func run(cfg *config.Config) error {
 		if err != nil {
 			return fmt.Errorf("loading search filters failed. %w", err)
 		}
+		containmentMap = searchFilter.ContainmentMap()
 		searchModels.Retain(searchFilter.Retain(false))
 	} else {
 		searchModels.Retain(meta.RetainStrings())
@@ -88,11 +90,14 @@ func run(cfg *config.Config) error {
 	// Redis as message bus for datastore and logout events.
 	messageBus := redis.New(lookup)
 	// Auth Service.
-	authService, authBackground := auth.New(lookup, messageBus)
+	authService, authBackground, err := auth.New(lookup, messageBus)
+	if err != nil {
+		return err
+	}
 
 	go authBackground(ctx, oserror.Handle)
 
-	return web.Run(ctx, cfg, authService, qs, searchModels.CollectionRequestFields())
+	return web.Run(ctx, cfg, authService, qs, searchModels.CollectionRequestFields(), containmentMap)
 }
 
 func main() {

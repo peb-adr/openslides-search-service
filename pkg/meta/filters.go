@@ -12,6 +12,7 @@ type Filter struct {
 	Name       string
 	Items      []string
 	Additional []string
+	Contains   map[string]struct{}
 	Relations  map[string]*CollectionRelation
 }
 
@@ -58,14 +59,36 @@ func (fs *Filters) UnmarshalYAML(value *yaml.Node) error {
 			relations[k] = r
 		}
 
+		contains := make(map[string]struct{}, len(fsm[s].Contains))
+		for _, c := range fsm[s].Contains {
+			contains[c] = struct{}{}
+		}
+
 		*fs = append(*fs, Filter{
 			Name:       s.Name,
 			Items:      fsm[s].Searchable,
 			Additional: fsm[s].Additional,
 			Relations:  relations,
+			Contains:   contains,
 		})
 	}
 	return nil
+}
+
+// ContainmentMap returns a map with info which collections can be found within another collection
+func (fs Filters) ContainmentMap() map[string]map[string]struct{} {
+	containment := map[string]map[string]struct{}{}
+	for _, f := range fs {
+		containment[f.Name] = map[string]struct{}{}
+		containment[f.Name][f.Name] = struct{}{}
+		for _, g := range fs {
+			if _, ok := g.Contains[f.Name]; ok {
+				containment[f.Name][g.Name] = struct{}{}
+			}
+		}
+	}
+
+	return containment
 }
 
 // Retain returns a keep function for [Retain] which also updates

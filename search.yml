@@ -1,4 +1,6 @@
 agenda_item:
+  contains:
+    - topic
   searchable:
     - item_number
     - comment
@@ -13,6 +15,7 @@ agenda_item:
         id: null
         title: null
         text: null
+        meeting_id: null
     meeting_id:
       type: relation
       collection: meeting
@@ -35,6 +38,8 @@ assignment:
         id: null
         name: null
 committee:
+  contains:
+    - meeting
   searchable:
     - name
     - description
@@ -45,9 +50,15 @@ mediafile:
   searchable:
     - title
     - filename
+    - owner_id
   additional:
     - id
-    - owner_id
+  relations:
+    owner_id:
+      type: generic-relation
+      fields:
+        id: null
+        name: null
 meeting:
   searchable:
     - external_id
@@ -71,6 +82,7 @@ motion:
     - number
     - title
     - text
+    - reason
     - meeting_id
   additional:
     - id
@@ -83,6 +95,7 @@ motion:
       fields:
         id: null
         name: null
+        motions_show_sequential_number: null
     submitter_ids:
       type: relation-list
       collection: motion_submitter
@@ -109,6 +122,10 @@ motion:
                 username: null
                 gender: null
 poll:
+  contains:
+    - topic
+    - motion
+    - assignment
   searchable:
     - title
     - description
@@ -125,7 +142,18 @@ poll:
         title: null
         number: null
         sequential_number: null
+        meeting_id:
+          type: relation
+          collection: meeting
+          fields:
+            id: null
+            name: null
+            motions_show_sequential_number: null
 tag:
+  contains:
+    - topic
+    - motion
+    - assignment
   searchable:
     - name
     - meeting_id
@@ -149,12 +177,19 @@ tag:
           fields:
             id: null
             name: null
+            motions_show_sequential_number: null
         content_object_id:
           type: generic-relation
           fields:
             id: null
             title: null
             text: null
+            meeting_id:
+              type: relation
+              collection: meeting
+              fields:
+                id: null
+                name: null
 topic:
   searchable:
     - title

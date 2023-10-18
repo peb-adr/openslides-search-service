@@ -22,4 +22,4 @@ The OpenSlides search service.
 | `DATABASE_HOST`                 | `localhost`                | Host of the database. |
 | `DATABASE_PORT`                 | `5432`                     | Port of the database. |
 | `DATABASE_PASSWORD_FILE`        | `/run/secrets/postgres_password` | Password file of the database user. |
-| `RESTRICTER_URL`                | ``                         | URL to use the restricter from the auto-update-service to filter the query results.|
+| `RESTRICTER_URL`                | `http://autoupdate:9012/internal/autoupdate` | URL to use the restricter from the auto-update-service to filter the query results.|
