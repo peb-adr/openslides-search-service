@@ -16,17 +16,24 @@ type Collection struct {
 
 // CollectionRelation describes a related collection
 type CollectionRelation struct {
-	Type       string                         `json:"type"`
-	Collection *string                        `json:"collection,omitempty"`
-	Fields     map[string]*CollectionRelation `json:"fields"`
+	Type       string                         `json:"type" yaml:"type"`
+	Collection *string                        `json:"collection,omitempty" yaml:"collection,omitempty"`
+	Fields     map[string]*CollectionRelation `json:"fields" yaml:"fields"`
+}
+
+// CollectionSearchableConfig contains per field config of a collection
+type CollectionSearchableConfig struct {
+	Type     *string `yaml:"type,omitempty"`
+	Analyzer *string `yaml:"analyzer,omitempty"`
 }
 
 // CollectionDescription is the collection format for search filters
 type CollectionDescription struct {
-	Searchable []string                       `yaml:"searchable"`
-	Additional []string                       `yaml:"additional"`
-	Contains   []string                       `yaml:"contains,omitempty"`
-	Relations  map[string]*CollectionRelation `yaml:"relations,omitempty"`
+	Searchable       []string                               `yaml:"searchable"`
+	SearchableConfig map[string]*CollectionSearchableConfig `yaml:"searchable_config,omitempty"`
+	Additional       []string                               `yaml:"additional"`
+	Contains         []string                               `yaml:"contains,omitempty"`
+	Relations        map[string]*CollectionRelation         `yaml:"relations,omitempty"`
 }
 
 // Collections is part of the meta model.

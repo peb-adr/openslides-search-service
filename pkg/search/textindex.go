@@ -5,10 +5,12 @@
 package search
 
 import (
+	"bytes"
 	"fmt"
 	"html"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -19,6 +21,7 @@ import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/keyword"
+	"github.com/blevesearch/bleve/v2/analysis/analyzer/simple"
 	bleveHtml "github.com/blevesearch/bleve/v2/analysis/char/html"
 	"github.com/blevesearch/bleve/v2/analysis/lang/de"
 	"github.com/blevesearch/bleve/v2/analysis/token/lowercase"
@@ -143,38 +146,57 @@ func (bt bleveType) BleveType() string {
 }
 
 func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
-
 	numberFieldMapping := bleve.NewNumericFieldMapping()
+
+	numberedRelationFieldMapping := bleve.NewNumericFieldMapping()
+	numberedRelationFieldMapping.IncludeInAll = false
+
 	textFieldMapping := bleve.NewTextFieldMapping()
 	textFieldMapping.Analyzer = de.AnalyzerName
 
 	htmlFieldMapping := bleve.NewTextFieldMapping()
 	htmlFieldMapping.Analyzer = deHTML
 
-	keywordFieldMapping := bleve.NewTextFieldMapping()
-	keywordFieldMapping.Analyzer = keyword.Name
+	collectionInfoFieldMapping := bleve.NewTextFieldMapping()
+	collectionInfoFieldMapping.Analyzer = keyword.Name
+	collectionInfoFieldMapping.IncludeInAll = false
+
+	simpleFieldMapping := bleve.NewTextFieldMapping()
+	simpleFieldMapping.Analyzer = simple.Name
 
 	indexMapping := mapping.NewIndexMapping()
 	indexMapping.TypeField = "_bleve_type"
 
 	for name, col := range collections {
 		docMapping := bleve.NewDocumentMapping()
-		docMapping.AddFieldMappingsAt("_bleve_type", keywordFieldMapping)
+		docMapping.AddFieldMappingsAt("_bleve_type", collectionInfoFieldMapping)
 		for fname, cf := range col.Fields {
 			if cf.Searchable {
-				switch cf.Type {
-				case "HTMLStrict", "HTMLPermissive":
-					docMapping.AddFieldMappingsAt(fname, htmlFieldMapping)
-				case "string", "text":
-					docMapping.AddFieldMappingsAt(fname, textFieldMapping)
-				case "generic-relation":
-					docMapping.AddFieldMappingsAt(fname, keywordFieldMapping)
-				case "relation", "number":
-					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
-				case "number[]":
-					docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
-				default:
-					log.Errorf("unsupport type %q on field %s\n", cf.Type, fname)
+				if cf.Analyzer == nil {
+					switch cf.Type {
+					case "HTMLStrict", "HTMLPermissive":
+						docMapping.AddFieldMappingsAt(fname, htmlFieldMapping)
+					case "string", "text":
+						docMapping.AddFieldMappingsAt(fname, textFieldMapping)
+						docMapping.AddFieldMappingsAt("_"+fname+"_original", simpleFieldMapping)
+					case "generic-relation":
+						docMapping.AddFieldMappingsAt(fname, collectionInfoFieldMapping)
+					case "relation", "relation-list":
+						docMapping.AddFieldMappingsAt(fname, numberedRelationFieldMapping)
+					case "number", "number[]":
+						docMapping.AddFieldMappingsAt(fname, numberFieldMapping)
+					default:
+						log.Errorf("unsupport type %q on field %s\n", cf.Type, fname)
+					}
+				} else {
+					switch *cf.Analyzer {
+					case "html":
+						docMapping.AddFieldMappingsAt(fname, htmlFieldMapping)
+					case "simple":
+						docMapping.AddFieldMappingsAt(fname, simpleFieldMapping)
+					default:
+						log.Errorf("unsupported analyzer %q on field %s\n", *cf.Analyzer, fname)
+					}
 				}
 			}
 		}
@@ -187,9 +209,19 @@ func buildIndexMapping(collections meta.Collections) mapping.IndexMapping {
 }
 
 func (bt bleveType) fill(fields map[string]*meta.Member, data []byte) {
-	for fname := range fields {
+	for fname, field := range fields {
+		if !field.Searchable {
+			continue
+		}
+
 		switch fields[fname].Type {
-		case "HTMLStrict", "HTMLPermissive", "string", "text", "generic-relation":
+		case "string", "text":
+			if v, err := jsonparser.GetString(data, fname); err == nil {
+				bt[fname] = v
+				bt["_"+fname+"_original"] = v
+				continue
+			}
+		case "HTMLStrict", "HTMLPermissive", "generic-relation":
 			if v, err := jsonparser.GetString(data, fname); err == nil {
 				bt[fname] = v
 				continue
@@ -205,6 +237,13 @@ func (bt bleveType) fill(fields map[string]*meta.Member, data []byte) {
 				if v, err := jsonparser.GetInt(value); err == nil {
 					bt[fname] = append(bt[fname].([]int64), v)
 				}
+			}, fname)
+			continue
+		case "json-int-string-map":
+			bt[fname] = []string{}
+			jsonparser.ObjectEach(data, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+				bt[fname] = append(bt[fname].([]string), string(value))
+				return nil
 			}, fname)
 			continue
 		default:
@@ -350,8 +389,18 @@ func (ti *TextIndex) Search(question string, collections []string, meetingID int
 		log.Debugf("searching for %q took %v\n", question, time.Since(start))
 	}()
 
+	var wildcardQuestion bytes.Buffer
+	for _, w := range strings.Split(question, " ") {
+		if w[0] != byte('*') && w[len(w)-1] != byte('*') {
+			wildcardQuestion.WriteString("*" + strings.ToLower(w) + "* ")
+		}
+	}
+	wildcardQuery := bleve.NewQueryStringQuery(wildcardQuestion.String())
+
 	var q query.Query
-	matchQuery := bleve.NewQueryStringQuery(question)
+	matchQueryOriginal := bleve.NewQueryStringQuery(question)
+	matchQueryOriginal.SetBoost(5)
+	matchQuery := bleve.NewDisjunctionQuery(matchQueryOriginal, wildcardQuery)
 
 	if meetingID > 0 {
 		fmid := float64(meetingID)
