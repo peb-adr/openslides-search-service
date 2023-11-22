@@ -382,6 +382,20 @@ type Answer struct {
 	MatchedWords map[string][]string
 }
 
+func filterExactMatchTerms(question string) string {
+	exactmatchFiltered := bytes.Buffer{}
+	throwAway := false
+	for _, w := range question {
+		if w == '"' {
+			throwAway = !throwAway
+		} else if !throwAway {
+			exactmatchFiltered.WriteRune(w)
+		}
+	}
+
+	return exactmatchFiltered.String()
+}
+
 // Search queries the internal index for hits.
 func (ti *TextIndex) Search(question string, collections []string, meetingID int) (map[string]Answer, error) {
 	start := time.Now()
@@ -389,9 +403,9 @@ func (ti *TextIndex) Search(question string, collections []string, meetingID int
 		log.Debugf("searching for %q took %v\n", question, time.Since(start))
 	}()
 
-	var wildcardQuestion bytes.Buffer
-	for _, w := range strings.Split(question, " ") {
-		if w[0] != byte('*') && w[len(w)-1] != byte('*') {
+	wildcardQuestion := bytes.Buffer{}
+	for _, w := range strings.Split(filterExactMatchTerms(question), " ") {
+		if len(w) > 2 && w[0] != byte('*') && w[len(w)-1] != byte('*') {
 			wildcardQuestion.WriteString("*" + strings.ToLower(w) + "* ")
 		}
 	}
