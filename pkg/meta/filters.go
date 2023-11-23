@@ -9,11 +9,12 @@ import (
 
 // Filter is part of the meta model.
 type Filter struct {
-	Name       string
-	Items      []string
-	Additional []string
-	Contains   map[string]struct{}
-	Relations  map[string]*CollectionRelation
+	Name        string
+	Items       []string
+	ItemsConfig map[string]*CollectionSearchableConfig
+	Additional  []string
+	Contains    map[string]struct{}
+	Relations   map[string]*CollectionRelation
 }
 
 // FilterKey is part of the meta model.
@@ -65,11 +66,12 @@ func (fs *Filters) UnmarshalYAML(value *yaml.Node) error {
 		}
 
 		*fs = append(*fs, Filter{
-			Name:       s.Name,
-			Items:      fsm[s].Searchable,
-			Additional: fsm[s].Additional,
-			Relations:  relations,
-			Contains:   contains,
+			Name:        s.Name,
+			Items:       fsm[s].Searchable,
+			ItemsConfig: fsm[s].SearchableConfig,
+			Additional:  fsm[s].Additional,
+			Relations:   relations,
+			Contains:    contains,
 		})
 	}
 	return nil
@@ -101,9 +103,14 @@ func (fs Filters) Retain(verbose bool) func(string, string, *Member) bool {
 	keep := map[key]struct{}{}
 	additional := map[key]struct{}{}
 	relations := map[key]*CollectionRelation{}
+	config := map[key]*CollectionSearchableConfig{}
 	for _, m := range fs {
 		for _, f := range m.Items {
 			keep[key{rel: m.Name, field: f}] = struct{}{}
+		}
+
+		for f, data := range m.ItemsConfig {
+			config[key{rel: m.Name, field: f}] = data
 		}
 
 		for _, f := range m.Additional {
@@ -117,6 +124,14 @@ func (fs Filters) Retain(verbose bool) func(string, string, *Member) bool {
 	return func(rk, fk string, m *Member) bool {
 		if _, ok := relations[key{rel: rk, field: fk}]; ok {
 			m.Relation = relations[key{rel: rk, field: fk}]
+		}
+
+		if c, ok := config[key{rel: rk, field: fk}]; ok {
+			if c.Type != nil {
+				m.Type = *c.Type
+			}
+
+			m.Analyzer = c.Analyzer
 		}
 
 		if _, ok := additional[key{rel: rk, field: fk}]; ok {

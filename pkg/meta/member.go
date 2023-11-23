@@ -24,6 +24,7 @@ type Member struct {
 	RestrictionMode       string              `yaml:"restriction_mode"`
 	Required              bool                `yaml:"required"`
 	Searchable            bool                `yaml:"-"`
+	Analyzer              *string             `yaml:"-"`
 	Relation              *CollectionRelation `yaml:"-"`
 	Order                 int32               `yaml:"-"`
 }
