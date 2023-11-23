@@ -396,6 +396,22 @@ func filterExactMatchTerms(question string) string {
 	return exactmatchFiltered.String()
 }
 
+// Terminates unclosed quotes
+func cleanupQuestion(question string) string {
+	hasUnclosedQuote := false
+	for _, w := range question {
+		if w == '"' {
+			hasUnclosedQuote = !hasUnclosedQuote
+		}
+	}
+
+	if hasUnclosedQuote {
+		return question + "\""
+	}
+
+	return question
+}
+
 // Search queries the internal index for hits.
 func (ti *TextIndex) Search(question string, collections []string, meetingID int) (map[string]Answer, error) {
 	start := time.Now()
@@ -403,6 +419,7 @@ func (ti *TextIndex) Search(question string, collections []string, meetingID int
 		log.Debugf("searching for %q took %v\n", question, time.Since(start))
 	}()
 
+	question = cleanupQuestion(question)
 	wildcardQuestion := bytes.Buffer{}
 	for _, w := range strings.Split(filterExactMatchTerms(question), " ") {
 		if len(w) > 2 && w[0] != byte('*') && w[len(w)-1] != byte('*') {
