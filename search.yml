@@ -114,7 +114,12 @@ motion:
           fields:
             id: null
             number: null
-            structure_level: null
+            structure_level_ids:
+              type: relation
+              collection: structure_level
+              fields:
+                id: null
+                name: null
             vote_weight: null
             user_id:
               type: relation
@@ -247,8 +252,6 @@ user:
     - last_name
     - gender
     - email
-    - default_number
-    - default_structure_level
     - organization_management_level
     - meeting_ids
     - owner_id
