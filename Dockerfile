@@ -12,9 +12,6 @@ COPY pkg pkg
 # Build service in seperate stage.
 FROM base as builder
 RUN go build -o openslides-search-service cmd/searchd/main.go
-RUN go build -o openslides-search-generate-filter cmd/generate-filter/main.go
-RUN wget https://github.com/OpenSlides/openslides-backend/raw/main/global/meta/models.yml
-RUN ./openslides-search-generate-filter --output search.yml
 
 
 # Test build.
@@ -32,8 +29,8 @@ RUN ["go", "install", "github.com/githubnemo/CompileDaemon@latest"]
 EXPOSE 9050
 
 COPY entrypoint.sh ./
-COPY search.yml .
-COPY --from=builder /root/models.yml .
+COPY meta/search.yml .
+COPY meta/models.yml .
 ENTRYPOINT ["./entrypoint.sh"]
 CMD CompileDaemon -log-prefix=false -build="go build -o openslides-search-service cmd/searchd/main.go" -command="./openslides-search-service"
 
@@ -47,8 +44,8 @@ LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.source="https://github.com/OpenSlides/openslides-search-service"
 
 COPY entrypoint.sh ./
-COPY search.yml .
-COPY --from=builder /root/models.yml .
+COPY meta/search.yml .
+COPY meta/models.yml .
 COPY --from=builder /root/openslides-search-service .
 EXPOSE 9050
 ENTRYPOINT ["./entrypoint.sh"]
