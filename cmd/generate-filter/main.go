@@ -16,13 +16,6 @@ import (
 	"github.com/OpenSlides/openslides-search-service/pkg/meta"
 )
 
-const (
-	backend   = "https://raw.githubusercontent.com/OpenSlides/openslides-backend"
-	branch    = "master"
-	modelsYML = "global/meta/models.yml"
-	path      = backend + "/" + branch + "/" + modelsYML
-)
-
 func nolog(format string, args ...any) {}
 
 func run(input, filter, output string, verbose bool) error {
@@ -84,7 +77,7 @@ func run(input, filter, output string, verbose bool) error {
 
 func main() {
 	var (
-		input   = flag.String("input", path, "source of input")
+		input   = flag.String("input", "meta/models.yml", "source of input")
 		filter  = flag.String("filter", "", "source of filter")
 		output  = flag.String("output", "", "output file (default STDOUT)")
 		verbose = flag.Bool("verbose", false, "verbose logging")
