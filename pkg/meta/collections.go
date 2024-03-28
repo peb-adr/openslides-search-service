@@ -5,7 +5,7 @@ import (
 	"io"
 	"sort"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // Collection is part of the meta model.
@@ -39,10 +39,10 @@ type CollectionDescription struct {
 // Collections is part of the meta model.
 type Collections map[string]*Collection
 
-// UnmarshalYAML implements [gopkg.in/yaml.v3.Unmarshaler].
-func (m *Collection) UnmarshalYAML(value *yaml.Node) error {
+// UnmarshalYAML Parses yaml to Collection
+func (m *Collection) UnmarshalYAML(node []byte) error {
 	m.Order = modelNum.Add(1)
-	return value.Decode(&m.Fields)
+	return yaml.Unmarshal(node, &m.Fields)
 }
 
 // OrderedKeys returns the keys in document order.
