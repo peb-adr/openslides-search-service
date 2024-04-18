@@ -2,9 +2,8 @@ package meta
 
 import (
 	log "github.com/sirupsen/logrus"
-	"sort"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // Filter is part of the meta model.
@@ -17,59 +16,33 @@ type Filter struct {
 	Relations   map[string]*CollectionRelation
 }
 
-// FilterKey is part of the meta model.
-type FilterKey struct {
-	Name  string
-	Order int32
-}
-
 // Filters is a list of filters.
 type Filters []Filter
 
-// UnmarshalYAML implements [gopkg.in/yaml.v3.Unmarshaler].
-func (fk *FilterKey) UnmarshalYAML(value *yaml.Node) error {
-	var s string
-	if err := value.Decode(&s); err != nil {
+// UnmarshalYAML Parses yaml to Filters
+func (fs *Filters) UnmarshalYAML(node []byte) error {
+	var fsm map[string]CollectionDescription
+	if err := yaml.Unmarshal(node, &fsm); err != nil {
 		return err
 	}
-	*fk = FilterKey{
-		Order: filterNum.Add(1),
-		Name:  s,
-	}
-	return nil
-}
 
-// UnmarshalYAML implements [gopkg.in/yaml.v3.Unmarshaler].
-func (fs *Filters) UnmarshalYAML(value *yaml.Node) error {
-	var fsm map[FilterKey]CollectionDescription
-	if err := value.Decode(&fsm); err != nil {
-		return err
-	}
-	sorted := make([]FilterKey, 0, len(fsm))
+	*fs = make(Filters, 0, len(fsm))
 	for k := range fsm {
-		sorted = append(sorted, k)
-	}
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Order < sorted[j].Order
-	})
-
-	*fs = make(Filters, 0, len(sorted))
-	for _, s := range sorted {
 		relations := map[string]*CollectionRelation{}
-		for k, r := range fsm[s].Relations {
+		for k, r := range fsm[k].Relations {
 			relations[k] = r
 		}
 
-		contains := make(map[string]struct{}, len(fsm[s].Contains))
-		for _, c := range fsm[s].Contains {
+		contains := make(map[string]struct{}, len(fsm[k].Contains))
+		for _, c := range fsm[k].Contains {
 			contains[c] = struct{}{}
 		}
 
 		*fs = append(*fs, Filter{
-			Name:        s.Name,
-			Items:       fsm[s].Searchable,
-			ItemsConfig: fsm[s].SearchableConfig,
-			Additional:  fsm[s].Additional,
+			Name:        k,
+			Items:       fsm[k].Searchable,
+			ItemsConfig: fsm[k].SearchableConfig,
+			Additional:  fsm[k].Additional,
 			Relations:   relations,
 			Contains:    contains,
 		})

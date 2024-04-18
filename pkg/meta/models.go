@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 var (
@@ -24,8 +24,24 @@ var (
 
 func load[T any](r io.Reader) (T, error) {
 	dec := yaml.NewDecoder(r)
+	var tmp map[string]interface{}
+	if err := dec.Decode(&tmp); err != nil {
+		var n T
+		return n, err
+	}
+
+	if _, ok := tmp["_meta"]; ok {
+		delete(tmp, "_meta")
+	}
+
+	cleanYml, err := yaml.Marshal(tmp)
+	if err != nil {
+		var n T
+		return n, err
+	}
+
 	var t T
-	if err := dec.Decode(&t); err != nil {
+	if err := yaml.Unmarshal(cleanYml, &t); err != nil {
 		var n T
 		return n, err
 	}

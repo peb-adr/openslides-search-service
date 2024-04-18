@@ -4,7 +4,7 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // MemberTo is part of the meta model.
@@ -29,18 +29,18 @@ type Member struct {
 	Order                 int32               `yaml:"-"`
 }
 
-// UnmarshalYAML implements [gopkg.in/yaml.v3.Unmarshaler].
-func (mt *MemberTo) UnmarshalYAML(value *yaml.Node) error {
+// UnmarshalYAML Parses yaml to MemberTo
+func (mt *MemberTo) UnmarshalYAML(node []byte) error {
 	// 1. string
 	var s string
-	if err := value.Decode(&s); err == nil {
+	if err := yaml.Unmarshal(node, &s); err == nil {
 		mt.Field = s
 		return nil
 	}
 
 	// 2. List of strings
 	var collections []string
-	if err := value.Decode(&collections); err == nil {
+	if err := yaml.Unmarshal(node, &collections); err == nil {
 		mt.Collections = collections
 		return nil
 	}
@@ -50,7 +50,7 @@ func (mt *MemberTo) UnmarshalYAML(value *yaml.Node) error {
 		Collections []string `yaml:"collections"`
 		Field       string   `yaml:"field"`
 	}
-	if err := value.Decode(&memberTo); err != nil {
+	if err := yaml.Unmarshal(node, &memberTo); err != nil {
 		return fmt.Errorf("memberTo object without field: %w", err)
 	}
 	mt.Field = memberTo.Field
@@ -58,11 +58,15 @@ func (mt *MemberTo) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-// UnmarshalYAML implements [gopkg.in/yaml.v3.Unmarshaler].
-func (m *Member) UnmarshalYAML(value *yaml.Node) error {
+// UnmarshalYAML Parses yaml to Member
+func (m *Member) UnmarshalYAML(node []byte) error {
+	if node[0] == byte('&') {
+		return nil
+	}
+
 	m.Order = fieldNum.Add(1)
 	var s string
-	if err := value.Decode(&s); err == nil {
+	if err := yaml.Unmarshal(node, &s); err == nil {
 		m.Type = s
 		return nil
 	}
@@ -76,7 +80,7 @@ func (m *Member) UnmarshalYAML(value *yaml.Node) error {
 		RestrictionMode       string    `yaml:"restriction_mode"`
 		Required              bool      `yaml:"required"`
 	}
-	if err := value.Decode(&member); err != nil {
+	if err := yaml.Unmarshal(node, &member); err != nil {
 		return fmt.Errorf("member object without type: %w", err)
 	}
 	m.Type = member.Type

@@ -3,7 +3,7 @@ package meta
 import (
 	"fmt"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 // Fields is part of the meta model.
@@ -12,10 +12,10 @@ type Fields struct {
 	To   string `yaml:"to"`
 }
 
-// UnmarshalYAML implements [gopkg.in/yaml.v3.Unmarshaler].
-func (fs *Fields) UnmarshalYAML(value *yaml.Node) error {
+// UnmarshalYAML Parses yaml to Fields
+func (fs *Fields) UnmarshalYAML(node []byte) error {
 	var s string
-	if err := value.Decode(&s); err == nil {
+	if err := yaml.Unmarshal(node, &s); err == nil {
 		fs.Type = s
 		return nil
 	}
@@ -23,7 +23,7 @@ func (fs *Fields) UnmarshalYAML(value *yaml.Node) error {
 		Type string `yaml:"type"`
 		To   string `yaml:"to"`
 	}
-	if err := value.Decode(&field); err != nil {
+	if err := yaml.Unmarshal(node, &field); err != nil {
 		return fmt.Errorf("fields object without type: %w", err)
 	}
 	fs.Type = field.Type
