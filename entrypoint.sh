@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [[ $DATASTORE_WRITER_HOST && $DATASTORE_WRITER_PORT ]]; then
+if [ ! $ANONYMOUS_ONLY -a $DATASTORE_WRITER_HOST -a $DATASTORE_WRITER_PORT ]; then
     while ! nc -z "$DATASTORE_WRITER_HOST" "$DATASTORE_WRITER_PORT"; do
         echo "waiting for $DATASTORE_WRITER_HOST:$DATASTORE_WRITER_PORT"
         sleep 1
