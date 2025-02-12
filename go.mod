@@ -8,7 +8,7 @@ require (
 	github.com/OpenSlides/openslides-autoupdate-service v0.4.1-0.20230912062233-f037fa16c288
 	github.com/blevesearch/bleve/v2 v2.4.4
 	github.com/buger/jsonparser v1.1.1
-	github.com/goccy/go-yaml v1.15.17
+	github.com/goccy/go-yaml v1.15.20
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/sys v0.30.0
