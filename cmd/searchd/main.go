@@ -15,9 +15,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/OpenSlides/openslides-go/auth"
-	"github.com/OpenSlides/openslides-go/environment"
-	"github.com/OpenSlides/openslides-go/redis"
+	"github.com/peb-adr/openslides-go/auth"
+	"github.com/peb-adr/openslides-go/environment"
+	"github.com/peb-adr/openslides-go/redis"
 	"github.com/OpenSlides/openslides-search-service/pkg/config"
 	"github.com/OpenSlides/openslides-search-service/pkg/meta"
 	"github.com/OpenSlides/openslides-search-service/pkg/oserror"
