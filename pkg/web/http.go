@@ -19,7 +19,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/OpenSlides/openslides-autoupdate-service/pkg/auth"
+	"github.com/OpenSlides/openslides-go/auth"
 	"github.com/OpenSlides/openslides-search-service/pkg/config"
 	"github.com/OpenSlides/openslides-search-service/pkg/meta"
 	"github.com/OpenSlides/openslides-search-service/pkg/oserror"

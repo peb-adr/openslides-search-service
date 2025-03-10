@@ -1,5 +1,5 @@
-FROM golang:1.23.5-alpine as base
-WORKDIR /root
+FROM golang:1.24.0-alpine as base
+WORKDIR /root/openslides-search-service
 
 RUN apk add git
 
@@ -28,11 +28,13 @@ FROM base as development
 RUN ["go", "install", "github.com/githubnemo/CompileDaemon@latest"]
 EXPOSE 9050
 
+WORKDIR /root
 COPY entrypoint.sh ./
 COPY meta/search.yml .
 COPY meta/models.yml .
 ENTRYPOINT ["./entrypoint.sh"]
-CMD CompileDaemon -log-prefix=false -build="go build -o openslides-search-service cmd/searchd/main.go" -command="./openslides-search-service"
+
+CMD CompileDaemon -log-prefix=false -build="go build -o search-service ./openslides-search-service/cmd/searchd/main.go" -command="./search-service"
 
 
 # Productive build
@@ -46,7 +48,7 @@ LABEL org.opencontainers.image.source="https://github.com/OpenSlides/openslides-
 COPY entrypoint.sh ./
 COPY meta/search.yml .
 COPY meta/models.yml .
-COPY --from=builder /root/openslides-search-service .
+COPY --from=builder /root/openslides-search-service/openslides-search-service .
 EXPOSE 9050
 ENTRYPOINT ["./entrypoint.sh"]
 CMD exec ./openslides-search-service
