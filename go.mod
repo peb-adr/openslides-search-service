@@ -7,7 +7,7 @@ require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/goccy/go-yaml v1.15.23
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/peb-adr/openslides-go v0.0.2-0.20250311144228-76921244ceb4
+	github.com/peb-adr/openslides-go v0.0.2-0.20250312161129-1bb6d4474bf9
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/sys v0.31.0
 )
